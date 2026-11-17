@@ -247,7 +247,9 @@ impl GeneratedCode {
     ///
     /// This is only needed when building shared libraries on Windows where the library
     /// imports functions from the executable. The thunks use GetProcAddress to resolve
-    /// symbols at runtime.
+    /// symbols at runtime from the executable, or from the module named by
+    /// `CXXBRIDGE_HOST_MODULE` (a wide string literal, e.g. `L"host.dll"`) if
+    /// defined when compiling the thunks.
     ///
     /// Returns an empty string if there are no imports or if the target OS is not Windows.
     #[allow(dead_code)]
@@ -264,15 +266,18 @@ impl GeneratedCode {
         out.push_str("#include <cstdio>\n");
         out.push_str("#include <exception>\n");
         out.push_str("#include <windows.h>\n");
+        out.push_str("#ifndef CXXBRIDGE_HOST_MODULE\n");
+        out.push_str("#define CXXBRIDGE_HOST_MODULE nullptr\n");
+        out.push_str("#endif\n");
 
         for import in &self.ctx.imports {
             let out::ImportInfo { symbol, return_type, signature_args, noexcept, call_args } = import;
             out.push_str(&format!(
                 r#"extern "C" {return_type}{symbol}({signature_args}){noexcept} {{
     static auto fn = reinterpret_cast<{return_type}(*)({signature_args})>(
-        reinterpret_cast<void*>(GetProcAddress(GetModuleHandle(NULL), "{symbol}")));
+        reinterpret_cast<void*>(GetProcAddress(GetModuleHandleW(CXXBRIDGE_HOST_MODULE), "{symbol}")));
     if (fn) return fn({call_args});
-    fprintf(stderr, "FATAL: Host EXE missing required export: {symbol}\n");
+    fprintf(stderr, "FATAL: Host module missing required export: {symbol}\n");
     std::terminate();
 }}
 "#,

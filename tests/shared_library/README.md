@@ -14,7 +14,8 @@ This test specifically validates the cxx_gen functionality for generating:
 
 **Windows:**
 - Uses `.def` files to control symbol exports/imports
-- Generates thunks that use `GetProcAddress` to dynamically resolve symbols from the executable
+- Generates thunks that use `GetProcAddress` to dynamically resolve symbols from the executable,
+  or from the module named by `CXXBRIDGE_HOST_MODULE` (e.g. `L"host.dll"`) if defined when compiling the thunks
 - Thunks are compiled into the DLL
 
 **Linux:**
